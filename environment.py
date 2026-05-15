@@ -1,4 +1,5 @@
 import json
+import random
 
 class MockDevOpsEnvironment:
     """
@@ -23,7 +24,12 @@ class MockDevOpsEnvironment:
             "redis-cache": ["WARN: Max memory reached, evicting keys", "INFO: Saving dump.rdb"]
         }
         
+        # The qwen2.5-coder:3b model is a bit stupid and needs more hand-holding to navigate
         self.runbooks = {
+            "checkout": "Runbook [Checkout]: Use query_metrics on 'payment-db' and 'redis-cache'. If DB EXHAUSTED, run rollback_deployment on 'checkout-service'. If Cache MAXED_OUT, run scale_up_cache(). Finally, run resolve_ticket.",
+        }
+
+        self.runbooks_old = {
             "502 auth": "Runbook [Auth 502]: Check database connection metrics. If TIMEOUT, restart the auth-db-pool pod.",
             "high cpu redis": "Runbook [Redis CPU]: Check logs for 'evicting keys'. If present, escalate to Database team to scale up."
         }
@@ -62,84 +68,69 @@ class MockDevOpsEnvironment:
     def resolve_ticket(self, summary: str) -> str:
         """Closes the ticket in Jira."""
         return f"TICKET CLOSED: {summary}"
-    
-import json
 
 class AdvancedDevOpsEnvironment:
     def __init__(self):
-        # Services depend on each other
         self.dependencies = {
             "frontend-web": ["api-gateway"],
-            "api-gateway": ["auth-service", "checkout-service"],
-            "checkout-service": ["payment-db", "redis-cache"],
-            "auth-service": ["user-db"]
+            "api-gateway": ["checkout-service"],
+            "checkout-service": ["payment-db", "redis-cache"]
         }
 
-        # A cascading failure scenario
-        # A bad deployment on checkout-service is causing the payment-db to lock up.
-        self.active_alerts = [
-            "CRITICAL: High error rate on frontend-web",
-            "WARNING: 504 Gateway Timeout on api-gateway",
-            "CRITICAL: DB Connection Pool Exhausted on checkout-service"
-        ]
+        # Randomize the root cause for this run
+        self.root_cause = random.choice(["db_lock", "cache_oom"])
 
-        self.deployments = {
-            "checkout-service": "v2.1.4 (Deployed 5 mins ago)",
-            "frontend-web": "v1.9.0 (Deployed 2 days ago)"
-        }
+        # The surface-level alert is always the same
+        self.active_alerts = ["USER REPORT: Users cannot complete checkout."]
 
-        self.logs_db = {
-            "frontend-web": [
-                "INFO: User clicked checkout", 
-                "ERROR: Request to api-gateway timed out after 30s"
-            ],
-            "api-gateway": [
-                "INFO: Routing request to checkout-service", 
-                "ERROR: Upstream connection refused: checkout-service"
-            ],
-            "checkout-service": [
-                "INFO: Starting migration script v2.1.4",
-                "FATAL: Deadlock detected in payment-db transaction",
-                "WARN: Connection pool exhausted"
-            ]
-        }
+        # State changes based on the hidden root cause
+        # The root cause is either cache issue or a db issue
+        if self.root_cause == "db_lock":
+            self.metrics = {
+                "payment-db": {"cpu": "45%", "connections": "EXHAUSTED"},
+                "redis-cache": {"memory": "2GB", "status": "HEALTHY"}
+            }
+            self.deployments = {"checkout-service": "v2.1.4 (Deployed 5 mins ago)"}
+        else:
+            self.metrics = {
+                "payment-db": {"cpu": "10%", "connections": "NORMAL"},
+                "redis-cache": {"memory": "MAXED_OUT", "status": "OOM_EVICTING"}
+            }
+            self.deployments = {"checkout-service": "v2.1.3 (Deployed 2 days ago)"}
 
         self.runbooks = {
-            "gateway timeout": "Runbook [504 Timeout]: Trace dependencies to find the failing upstream service. Check its recent deployments.",
-            "db pool exhausted": "Runbook [DB Exhaustion]: If a recent deployment caused a DB lock, IMMEDIATELY rollback the deployment. Do not attempt to restart the database."
+            "checkout": "Runbook [Checkout]: Use query_metrics on 'payment-db' and 'redis-cache'. If DB EXHAUSTED, check deployments and rollback. If Cache MAXED_OUT, scale up the cache.",
         }
 
-    # Diagnostic tools
     def trace_dependencies(self, service_name: str) -> str:
-        """Returns the downstream services this service relies on."""
         deps = self.dependencies.get(service_name, [])
         return f"Service '{service_name}' depends on: {', '.join(deps) if deps else 'None'}"
 
-    def check_recent_deployments(self, service_name: str) -> str:
-        """Checks if a service was deployed recently."""
-        return self.deployments.get(service_name, "No recent deployments in the last 24 hours.")
+    # Observability tools
+    def query_metrics(self, service_name: str) -> str:
+        """Crucial diagnostic tool to determine the branching path."""
+        if service_name in self.metrics:
+            return json.dumps(self.metrics[service_name])
+        return f"Error: No metrics for {service_name}"
 
-    def grep_recent_logs(self, service_name: str) -> str:
-        """Searches logs for a specific service."""
-        return "\n".join(self.logs_db.get(service_name, ["No logs found."]))
+    def check_recent_deployments(self, service_name: str) -> str:
+        return self.deployments.get(service_name, "No recent deployments.")
 
     def search_runbooks(self, query: str) -> str:
-        """Searches the internal Wiki."""
         for key, text in self.runbooks.items():
             if any(word in query.lower() for word in key.split()):
                 return text
         return "No runbook found."
 
-    #Actuation tools (agent should choose appropriate fix)
     def rollback_deployment(self, service_name: str) -> str:
-        """Rolls back a service to its previous stable version."""
-        if service_name == "checkout-service":
-            return "SUCCESS: checkout-service rolled back to v2.1.3. DB locks cleared. System recovering."
-        return f"FAILED: Cannot rollback {service_name}, no faulty deployment detected."
+        if self.root_cause == "db_lock" and service_name == "checkout-service":
+            return "SUCCESS: checkout-service rolled back. DB locks cleared."
+        return "CRITICAL FAILURE: Rolled back healthy service. Outage worsened."
 
-    def restart_database(self, db_name: str) -> str:
-        """Restarts a database cluster (DANGEROUS)."""
-        return f"CRITICAL FAILURE: Restarting {db_name} during a deadlock caused data corruption. Escalation required."
+    def scale_up_cache(self) -> str:
+        if self.root_cause == "cache_oom":
+            return "SUCCESS: redis-cache scaled up. Memory cleared."
+        return "CRITICAL FAILURE: Scaled up cache unnecessarily, wasting resources."
 
     def resolve_ticket(self, summary: str) -> str:
         return f"TICKET CLOSED: {summary}"

@@ -1,6 +1,7 @@
 import ollama
 import json
 import re
+import inspect
 from environment import AdvancedDevOpsEnvironment
 
 def extract_json(text):
@@ -21,8 +22,13 @@ class ToolRegistry:
         return func
 
     def get_tool_schemas(self):
-        return [{"name": name, "description": func.__doc__} for name, func in self.tools.items()]
-
+        schemas = []
+        for name, func in self.tools.items():
+            doc = func.__doc__ or "No description."
+            sig = inspect.signature(func)
+            schemas.append({"name": name, "description": doc, "params": str(sig)})
+        return schemas
+    
     def execute(self, tool_name, kwargs):
         if tool_name not in self.tools:
             return f"Error: Tool {tool_name} not found."
@@ -35,14 +41,26 @@ class StemAgent:
         self.episodic_memory = [] 
         self.procedural_skills = [] #crystallized rules
         
-        self.base_prompt = """
+        self.base_prompt_old = """
         You are an autonomous SRE Agent. Diagnose and resolve the user's alert.
         Available tools: {tools}
         
         If you have procedural skills listed below, prioritize them!
         ACQUIRED SKILLS: {skills}
         
-        Output ONLY valid JSON: {"thought": "reasoning", "tool": "tool_name", "args": {"arg1": "val1"}}
+        Output ONLY valid JSON: {{"thought": "reasoning", "tool": "tool_name", "args": {{"arg1": "val1"}}}}
+        """
+        self.base_prompt = """
+        You are an autonomous SRE Agent. Diagnose and resolve the user's alert.
+        
+        KNOWN SERVICES: frontend-web, api-gateway, checkout-service, payment-db, redis-cache
+        
+        Available tools: {tools}
+        
+        If you have procedural skills listed below, prioritize them!
+        ACQUIRED SKILLS: {skills}
+        
+        Output ONLY valid JSON: {{"thought": "reasoning", "tool": "tool_name", "args": {{"arg1": "val1"}}}}
         """
 
     def _get_system_prompt(self):
@@ -91,8 +109,10 @@ class StemAgent:
                 messages.append({'role': 'user', 'content': f"Observation: {observation}. Next action?"})
                 
             except Exception as e:
-                print(f"FORMAT ERROR. Retrying...")
-                messages.append({'role': 'user', 'content': "Invalid JSON. Output strictly JSON."})
+                print(f"ERROR: {e}")
+                # capture the error and give it as a learning signal
+                error_msg = f"Error: {str(e)}. Check tool names, argument names, and ensure strictly valid JSON."
+                messages.append({'role': 'user', 'content': error_msg})
 
         # Save to memory and attempt crystallization
         self.episodic_memory.append({
@@ -118,8 +138,8 @@ class StemAgent:
         Review these successful task resolutions:
         {memory_dump}
         
-        Identify the optimal diagnostic path. Write a SINGLE sentence rule that tells the agent 
-        what tool to use FIRST to determine the root cause, and what to do based on that result.
+        Identify the optimal diagnostic path. Write a single sentence rule that tells the agent 
+        what tool to use first to determine the root cause, and what to do based on that result.
         If the cases are totally unrelated, reply "NO_PATTERN".
         """
         
@@ -127,7 +147,7 @@ class StemAgent:
         new_rule = response['message']['content'].strip()
         
         if "NO_PATTERN" not in new_rule.upper() and new_rule not in self.procedural_skills:
-            print(f"NEW EMERGENT SKILL DISCOVERED: {new_rule}")
+            print(f"NEW SKILL DISCOVERED: {new_rule}")
             self.procedural_skills.append(f"RULE: {new_rule}")
             # Clear episodic memory to start looking for the next distinct pattern
             self.episodic_memory = []
