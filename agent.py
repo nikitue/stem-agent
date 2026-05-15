@@ -88,7 +88,6 @@ class StemAgent:
         
         while not is_resolved and step_count < 8:
             step_count += 1
-            #response = ollama.chat(model='qwen2.5-coder:3b', messages=messages)
             response = ollama.chat(model='llama3.1', messages=messages)
             assistant_reply = response['message']['content'].strip()
             messages.append({'role': 'assistant', 'content': assistant_reply})
@@ -154,7 +153,6 @@ class StemAgent:
         Output ONLY the rule string. No conversational filler.
         """
         
-        #response = ollama.chat(model='qwen2.5-coder:3b', messages=[{'role': 'user', 'content': meta_prompt}])
         response = ollama.chat(model='llama3.1', messages=[{'role': 'user', 'content': meta_prompt}])
         new_rule = response['message']['content'].strip()
         
