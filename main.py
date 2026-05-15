@@ -24,8 +24,8 @@ def run_simulation():
         "Specialist": {"episodes": 0, "successes": 0, "steps": [], "runbook_reads": 0, "errors": 0}
     }
 
-    # Run 6 simulated alerts
-    for i in range(1, 7):
+    # Run 10 simulated alerts
+    for i in range(1, 11):
         print(f"\n EPISODE {i}\n")
         
         # Fresh environment (randomizes the root cause)

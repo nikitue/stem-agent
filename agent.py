@@ -57,32 +57,15 @@ class StemAgent:
         
         Available tools: {tools}
         
-        CRITICAL INSTRUCTIONS:
-        1. ALWAYS search_runbooks for "checkout" first.
-        2. NEVER pass lists as arguments. Check ONE service at a time.
-        3. Do exactly what the runbook says based on the metrics.
+        ACQUIRED PROCEDURAL SKILLS: 
+        {skills}
         
-        If you have procedural skills listed below, ignore the runbook and prioritize them!
-        ACQUIRED SKILLS: {skills}
+        CRITICAL INSTRUCTIONS:
+        1. If "ACQUIRED PROCEDURAL SKILLS" is "None", your VERY FIRST action MUST be search_runbooks with query "checkout". You will fail if you do not read the runbook.
+        2. If you have acquired skills, IGNORE the runbook and immediately use query_metrics.
+        3. Check ONE service at a time.
         
         Output NOTHING EXCEPT one valid JSON object.
-        Format: {{"thought": "reasoning", "tool": "tool_name", "args": {{"arg1": "val1"}}}}
-        """
-        self.base_prompt_old = """
-        You are an autonomous SRE Agent. Diagnose and resolve the user's alert.
-        KNOWN SERVICES: frontend-web, api-gateway, checkout-service, payment-db, redis-cache
-        
-        Available tools: {tools}
-        
-        CRITICAL INSTRUCTIONS:
-        1. ALWAYS start by using search_runbooks with query "checkout".
-        2. Read the runbook, then strictly follow its diagnostic steps using query_metrics.
-        3. Apply the exact fix the runbook suggests based on the metrics.
-        
-        If you have procedural skills listed below, ignore the runbook and prioritize them!
-        ACQUIRED SKILLS: {skills}
-        
-        Output NOTHING EXCEPT valid JSON. No conversational text.
         Format: {{"thought": "reasoning", "tool": "tool_name", "args": {{"arg1": "val1"}}}}
         """
 
@@ -162,9 +145,13 @@ class StemAgent:
         Review these successful task resolutions:
         {memory_dump}
         
-        Identify the optimal diagnostic path. Write a single sentence rule that tells the agent 
-        what tool to use first to determine the root cause, and what to do based on that result.
-        If the cases are totally unrelated, reply "NO_PATTERN".
+        Write a single, strict conditional rule to bypass the runbook for future alerts. 
+        DO NOT invent metrics, numbers, or thresholds (like > 90 or < 0.5) that are not explicitly in the logs.
+        
+        Format it exactly like this example:
+        "RULE: query_metrics on payment-db. If EXHAUSTED, rollback_deployment on checkout-service. If Cache is MAXED_OUT, scale_up_cache."
+        
+        Output ONLY the rule string. No conversational filler.
         """
         
         #response = ollama.chat(model='qwen2.5-coder:3b', messages=[{'role': 'user', 'content': meta_prompt}])

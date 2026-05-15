@@ -26,11 +26,10 @@ class MockDevOpsEnvironment:
         
         # The qwen2.5-coder:3b model is a bit stupid and needs more hand-holding to navigate
         self.runbooks = {
-            "checkout": "Runbook [Checkout]: Use query_metrics on 'payment-db' and 'redis-cache'. If DB EXHAUSTED, run rollback_deployment on 'checkout-service'. If Cache MAXED_OUT, run scale_up_cache(). Finally, run resolve_ticket.",
+            "checkout": "Runbook [Checkout]: Use query_metrics on 'payment-db' and 'redis-cache'. If DB EXHAUSTED, check deployments for 'checkout-service' and rollback_deployment on 'checkout-service'. If Cache MAXED_OUT, scale up the cache.",
         }
-
-        self.runbooks_old = {
-            "checkout": "Runbook [Checkout]: 1. query_metrics on 'payment-db'. If EXHAUSTED, ALWAYS run rollback_deployment with service_name 'checkout-service'. 2. query_metrics on 'redis-cache'. If MAXED_OUT, run scale_up_cache.",
+        self.runbook_old = {
+            "checkout": "Runbook [Checkout]: Use query_metrics on 'payment-db' and 'redis-cache'. If DB EXHAUSTED, run rollback_deployment on 'checkout-service'. If Cache MAXED_OUT, run scale_up_cache(). Finally, run resolve_ticket.",
         }
 
     # Observability tools
@@ -97,8 +96,11 @@ class AdvancedDevOpsEnvironment:
             }
             self.deployments = {"checkout-service": "v2.1.3 (Deployed 2 days ago)"}
 
-        self.runbooks = {
+        self.runbooks_old = {
             "checkout": "Runbook [Checkout]: Use query_metrics on 'payment-db' and 'redis-cache'. If DB EXHAUSTED, check deployments and rollback. If Cache MAXED_OUT, scale up the cache.",
+        }
+        self.runbooks = {
+            "checkout": "Runbook [Checkout]: 1. query_metrics on 'payment-db' and 'redis-cache'. 2. If DB EXHAUSTED, check_recent_deployments for 'checkout-service' and use rollback_deployment on 'checkout-service'. 3. If Cache MAXED_OUT, use scale_up_cache.",
         }
 
     def trace_dependencies(self, service_name: str) -> str:
