@@ -11,7 +11,7 @@ To run this simulation locally, you need Python 3.9+ and [Ollama](https://ollama
    ollama pull llama3.1
 3. **Run the program** execute ```python main.py``` to start the program
 
-The output is text in the console displaying the agent working on a 10 runs (episodes) of tackling technical issues. The format is `THOUGHT` of the model, followed by the `ACTION` it takes and then how the `SYSTEM` responds to it.
+The output is text in the console displaying the agent working on 10 runs (episodes) of tackling technical issues. The format is `THOUGHT` of the model, followed by the `ACTION` it takes, and then how the `SYSTEM` responds to it.
 
 ## Domain and Approach
 
@@ -89,5 +89,5 @@ I was surprised by how the model attempted to invent parameters during the memor
 1. **Upgrade the Cognitive Engine:** The architecture requires a model with better instruction-following and JSON-schema constraints (e.g., GPT-4o with Structured Outputs) to navigate the Specialist phase without context degradation.
 2. **Implement Skill Pruning (Negative Feedback):** Currently, the agent can write a skill, but it cannot unlearn it. I would implement a mechanism where if a crystallized skill triggers Apoptosis multiple times, the agent deletes the skill and reverts to a Progenitor state.
 3. **Dynamic Tool Discovery:** Instead of hardcoding the Tool Registry, I would allow the agent to query a simulated API gateway to discover available tools dynamically, further aligning with the concept of an agent reading its environment before transforming.
-4. **Read relevant research litereature:** I found the very recent research paper "STEM Agent: A Self-Adapting, Tool-Enabled, Extensible Architecture for Multi-Protocol AI Agent Systems" (https://arxiv.org/pdf/2603.22359), which eplores this exact concept of STEM Agents, and it could be perhaps the inspiration for the task. The agent they build consits of multiple production level layers, that are currently out of my scope. However, I can try to adapt the STEM Cognitive Pipeline algorithm that they provided.
-5. **Expand the environment:** Currently the model works in a sandbox environment and the interactions are very artificial for the project to be an actual agent. With more time maybe I could establish a real database and a pipeline of simple tasks which the agent should monitor and act upon.
+4. **Read relevant research literature:** I found the very recent research paper "STEM Agent: A Self-Adapting, Tool-Enabled, Extensible Architecture for Multi-Protocol AI Agent Systems" (https://arxiv.org/pdf/2603.22359), which explores this exact concept of STEM Agents, and it could be perhaps the inspiration for the task. The agent they built consists of multiple production-level layers, which are currently out of my scope. However, I can try to adapt the STEM Cognitive Pipeline algorithm that they provided.
+5. **Expand the environment:** Currently, the model works in a sandbox environment, and the interactions are very artificial for the project to be an actual agent. With more time, maybe I could establish a real database and a pipeline of simple tasks that the agent should monitor and act upon.
