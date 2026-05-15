@@ -5,12 +5,23 @@ import inspect
 from environment import AdvancedDevOpsEnvironment
 
 def extract_json(text):
-    # Find the first { and the last } to isolate the JSON object
+    """Extracts the first valid JSON object by balancing curly braces."""
     start = text.find('{')
-    end = text.rfind('}')
-    if start != -1 and end != -1:
-        return text[start:end+1]
-    return text.strip()
+    if start == -1:
+        return text.strip()
+        
+    brace_count = 0
+    for i in range(start, len(text)):
+        if text[i] == '{':
+            brace_count += 1
+        elif text[i] == '}':
+            brace_count -= 1
+            # When braces are balanced back to 0, we found the complete first object
+            if brace_count == 0:
+                return text[start:i+1]
+                
+    # Fallback if braces are unbalanced
+    return text[start:].strip()
 
 class ToolRegistry:
     def __init__(self):
@@ -40,16 +51,24 @@ class StemAgent:
         self.episodic_memory = [] 
         self.procedural_skills = [] #crystallized rules
         
-        self.base_prompt_old = """
+        self.base_prompt = """
         You are an autonomous SRE Agent. Diagnose and resolve the user's alert.
+        KNOWN SERVICES: frontend-web, api-gateway, checkout-service, payment-db, redis-cache
+        
         Available tools: {tools}
         
-        If you have procedural skills listed below, prioritize them!
+        CRITICAL INSTRUCTIONS:
+        1. ALWAYS search_runbooks for "checkout" first.
+        2. NEVER pass lists as arguments. Check ONE service at a time.
+        3. Do exactly what the runbook says based on the metrics.
+        
+        If you have procedural skills listed below, ignore the runbook and prioritize them!
         ACQUIRED SKILLS: {skills}
         
-        Output ONLY valid JSON: {{"thought": "reasoning", "tool": "tool_name", "args": {{"arg1": "val1"}}}}
+        Output NOTHING EXCEPT one valid JSON object.
+        Format: {{"thought": "reasoning", "tool": "tool_name", "args": {{"arg1": "val1"}}}}
         """
-        self.base_prompt = """
+        self.base_prompt_old = """
         You are an autonomous SRE Agent. Diagnose and resolve the user's alert.
         KNOWN SERVICES: frontend-web, api-gateway, checkout-service, payment-db, redis-cache
         
@@ -86,7 +105,8 @@ class StemAgent:
         
         while not is_resolved and step_count < 8:
             step_count += 1
-            response = ollama.chat(model='qwen2.5-coder:3b', messages=messages)
+            #response = ollama.chat(model='qwen2.5-coder:3b', messages=messages)
+            response = ollama.chat(model='llama3.1', messages=messages)
             assistant_reply = response['message']['content'].strip()
             messages.append({'role': 'assistant', 'content': assistant_reply})
             
@@ -147,7 +167,8 @@ class StemAgent:
         If the cases are totally unrelated, reply "NO_PATTERN".
         """
         
-        response = ollama.chat(model='qwen2.5-coder:3b', messages=[{'role': 'user', 'content': meta_prompt}])
+        #response = ollama.chat(model='qwen2.5-coder:3b', messages=[{'role': 'user', 'content': meta_prompt}])
+        response = ollama.chat(model='llama3.1', messages=[{'role': 'user', 'content': meta_prompt}])
         new_rule = response['message']['content'].strip()
         
         if "NO_PATTERN" not in new_rule.upper() and new_rule not in self.procedural_skills:

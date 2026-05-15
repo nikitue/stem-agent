@@ -19,13 +19,14 @@ def run_simulation():
     registry.register(dummy_env.resolve_ticket)
     
     agent = StemAgent(registry=registry)
-    metrics = {"undifferentiated_steps": [], "specialized_steps": []}
+    metrics = {
+        "Progenitor": {"episodes": 0, "successes": 0, "steps": [], "runbook_reads": 0, "errors": 0},
+        "Specialist": {"episodes": 0, "successes": 0, "steps": [], "runbook_reads": 0, "errors": 0}
+    }
 
     # Run 6 simulated alerts
     for i in range(1, 7):
-        print(f"\n{'='*60}")
-        print(f"🔄 EPISODE {i}")
-        print(f"{'='*60}")
+        print(f"\n EPISODE {i}\n")
         
         # Fresh environment (randomizes the root cause)
         env = AdvancedDevOpsEnvironment()
@@ -41,29 +42,43 @@ def run_simulation():
 
         alert = env.active_alerts[0]
         
-        # Track if it was specialized before running the task
-        was_specialized = len(agent.procedural_skills) > 0
-        
-        is_resolved, steps = agent.process_task(alert)
-        
-        if is_resolved:
-            if was_specialized:
-                metrics["specialized_steps"].append(steps)
-            else:
-                metrics["undifferentiated_steps"].append(steps)
+        # Check agent state before task
+        state = "Specialist" if len(agent.procedural_skills) > 0 else "Progenitor"
 
-    # Evaluation metrics
-    print("--- EVALUATION METRICS ---")
-    avg_un = sum(metrics["undifferentiated_steps"]) / max(1, len(metrics["undifferentiated_steps"]))
-    avg_sp = sum(metrics["specialized_steps"]) / max(1, len(metrics["specialized_steps"]))
+        # Track initial memory to see what happens in this episode
+        initial_memory_length = len(agent.episodic_memory)
+        is_resolved, steps = agent.process_task(alert)
+
+        # Gather episode stats
+        runbook_reads = 0
+        if len(agent.episodic_memory) > initial_memory_length:
+            latest_episode = agent.episodic_memory[-1]
+            runbook_reads = sum(1 for step in latest_episode["steps"] if step.get("tool") == "search_runbooks")
     
-    print(f"Average Steps (Undifferentiated / Progenitor): {avg_un:.1f}")
-    print(f"Average Steps (Specialized / Mature):          {avg_sp:.1f}")
+        # Record Metrics
+        metrics[state]["episodes"] += 1
+        metrics[state]["steps"].append(steps)
+        metrics[state]["runbook_reads"] += runbook_reads
+        if is_resolved:
+            metrics[state]["successes"] += 1
+        else:
+            metrics[state]["errors"] += 1
     
-    if avg_un > 0 and avg_sp > 0:
-        efficiency = (1 - (avg_sp / avg_un)) * 100
-        print(f"Efficiency Gain:                             {efficiency:.1f}% reduction in steps")
-        print("\nChallenge Requirements Met: Agent successfully figured out branching paths and evolved!")
+    # --- Print Evaluation Report ---
+    print("\n--- EVALUATION REPORT ---")
+    for state in ["Progenitor", "Specialist"]:
+        data = metrics[state]
+        if data["episodes"] > 0:
+            success_rate = (data["successes"] / data["episodes"]) * 100
+            avg_steps = sum(data["steps"]) / data["episodes"]
+            avg_runbook = data["runbook_reads"] / data["episodes"]
+            
+            print(f"\n[{state.upper()} PHASE]")
+            print(f"  Total Episodes:     {data['episodes']}")
+            print(f"  Success Rate:       {success_rate:.1f}%")
+            print(f"  Avg Steps/Task:     {avg_steps:.1f}")
+            print(f"  Runbook Reliance:   {avg_runbook:.1f} reads/task")
+            print(f"  Critical Failures:  {data['errors']}")
 
 if __name__ == "__main__":
     run_simulation()
