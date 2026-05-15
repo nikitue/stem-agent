@@ -30,7 +30,7 @@ def run_simulation():
         # Fresh environment (randomizes the root cause)
         env = AdvancedDevOpsEnvironment()
         
-        # Re-bind the registry to the NEW environment instance for this episode
+        # Re-bind the registry to the new environment instance for this episode
         registry.tools.clear()
         registry.register(env.trace_dependencies)
         registry.register(env.query_metrics)
@@ -38,7 +38,6 @@ def run_simulation():
         registry.register(env.search_runbooks)
         registry.register(env.rollback_deployment)
         registry.register(env.scale_up_cache)
-        registry.register(env.resolve_ticket)
 
         alert = env.active_alerts[0]
         

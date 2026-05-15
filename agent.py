@@ -5,12 +5,11 @@ import inspect
 from environment import AdvancedDevOpsEnvironment
 
 def extract_json(text):
-    # in case json is wrapped in ```json...```
-    backticks = chr(96) * 3
-    pattern = rf'{backticks}(?:json)?(.*?){backticks}'
-    match = re.search(pattern, text, re.DOTALL)
-    if match:
-        return match.group(1).strip()
+    # Find the first { and the last } to isolate the JSON object
+    start = text.find('{')
+    end = text.rfind('}')
+    if start != -1 and end != -1:
+        return text[start:end+1]
     return text.strip()
 
 class ToolRegistry:
@@ -52,15 +51,20 @@ class StemAgent:
         """
         self.base_prompt = """
         You are an autonomous SRE Agent. Diagnose and resolve the user's alert.
-        
         KNOWN SERVICES: frontend-web, api-gateway, checkout-service, payment-db, redis-cache
         
         Available tools: {tools}
         
-        If you have procedural skills listed below, prioritize them!
+        CRITICAL INSTRUCTIONS:
+        1. ALWAYS start by using search_runbooks with query "checkout".
+        2. Read the runbook, then strictly follow its diagnostic steps using query_metrics.
+        3. Apply the exact fix the runbook suggests based on the metrics.
+        
+        If you have procedural skills listed below, ignore the runbook and prioritize them!
         ACQUIRED SKILLS: {skills}
         
-        Output ONLY valid JSON: {{"thought": "reasoning", "tool": "tool_name", "args": {{"arg1": "val1"}}}}
+        Output NOTHING EXCEPT valid JSON. No conversational text.
+        Format: {{"thought": "reasoning", "tool": "tool_name", "args": {{"arg1": "val1"}}}}
         """
 
     def _get_system_prompt(self):

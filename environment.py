@@ -30,8 +30,7 @@ class MockDevOpsEnvironment:
         }
 
         self.runbooks_old = {
-            "502 auth": "Runbook [Auth 502]: Check database connection metrics. If TIMEOUT, restart the auth-db-pool pod.",
-            "high cpu redis": "Runbook [Redis CPU]: Check logs for 'evicting keys'. If present, escalate to Database team to scale up."
+            "checkout": "Runbook [Checkout]: 1. query_metrics on 'payment-db'. If EXHAUSTED, ALWAYS run rollback_deployment with service_name 'checkout-service'. 2. query_metrics on 'redis-cache'. If MAXED_OUT, run scale_up_cache.",
         }
 
     # Observability tools
@@ -124,12 +123,12 @@ class AdvancedDevOpsEnvironment:
 
     def rollback_deployment(self, service_name: str) -> str:
         if self.root_cause == "db_lock" and service_name == "checkout-service":
-            return "SUCCESS: checkout-service rolled back. DB locks cleared."
+            return "SUCCESS TICKET CLOSED: checkout-service rolled back. DB locks cleared."
         return "CRITICAL FAILURE: Rolled back healthy service. Outage worsened."
 
     def scale_up_cache(self) -> str:
         if self.root_cause == "cache_oom":
-            return "SUCCESS: redis-cache scaled up. Memory cleared."
+            return "SUCCESS TICKET CLOSED: redis-cache scaled up. Memory cleared."
         return "CRITICAL FAILURE: Scaled up cache unnecessarily, wasting resources."
 
     def resolve_ticket(self, summary: str) -> str:
