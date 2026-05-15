@@ -9,7 +9,10 @@ To run this simulation locally, you need Python 3.9+ and [Ollama](https://ollama
 2. **Pull the Model:** The agent is tuned for the 8-billion parameter Llama 3.1 model. Pull it via your terminal:
    ```bash
    ollama pull llama3.1
-3. **Run the program** execute ```python main.py``` to start the program
+   ```
+3. **Install dependencies:** Ensure you are in the project directory and install the required Python packages (just the ollama package) using the provided requirements.txt file:
+   ```pip install -r requirements.txt```
+4. **Run the program** execute ```python main.py``` to start the program
 
 The output is text in the console displaying the agent working on 10 runs (episodes) of tackling technical issues. The format is `THOUGHT` of the model, followed by the `ACTION` it takes, and then how the `SYSTEM` responds to it.
 
